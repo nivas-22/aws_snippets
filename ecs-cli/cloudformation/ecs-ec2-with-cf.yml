@@ -69,8 +69,7 @@ Resources:
       Roles:
         - !Ref ECSInstanceRole
 
-  # Launch Template for Auto Scaling Group
-  ECSLaunchTemplate:
+    ECSLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
       LaunchTemplateName: !Sub ${EnvironmentName}-launch-template
@@ -81,6 +80,9 @@ Resources:
           Name: !Ref EC2InstanceProfile
         SecurityGroupIds:
           - !Ref ContainerSecurityGroup
+        NetworkInterfaces:
+          - AssociatePublicIpAddress: true
+            SubnetId: !Ref PublicSubnet
         UserData:
           Fn::Base64: !Sub |
             #!/bin/bash -xe
