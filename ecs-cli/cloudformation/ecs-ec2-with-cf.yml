@@ -45,6 +45,16 @@ Resources:
       GroupDescription: Access to ECS instances
       VpcId: 
         Fn::ImportValue: !Sub ${EnvironmentName}:VpcId
+      SecurityGroupIngress:
+        - IpProtocol: "-1"  # "-1" indicates all protocols
+          CidrIp: "0.0.0.0/0"  # Allows all incoming traffic from any IPv4 address
+        - IpProtocol: "-1"
+          CidrIpv6: "::/0"  # Allows all incoming traffic from any IPv6 address
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: "0.0.0.0/0"  # Allows all outgoing traffic to any IPv4 address
+        - IpProtocol: "-1"
+          CidrIpv6: "::/0"  # Allows all outgoing traffic to any IPv6 address
 
   # IAM Role for ECS Instances
   ECSInstanceRole:
