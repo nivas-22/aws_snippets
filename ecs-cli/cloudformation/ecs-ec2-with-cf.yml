@@ -72,33 +72,34 @@ Resources:
       Path: /
 
   # IAM Instance Profile for ECS Instances
-  EC2InstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Path: /
-      Roles:
-        - !Ref ECSInstanceRole
+EC2InstanceProfile:
+  Type: AWS::IAM::InstanceProfile
+  Properties:
+    Path: /
+    Roles:
+      - !Ref ECSInstanceRole
 
-    ECSLaunchTemplate:
-    Type: AWS::EC2::LaunchTemplate
-    Properties:
-      LaunchTemplateName: !Sub ${EnvironmentName}-launch-template
-      LaunchTemplateData:
-        InstanceType: !Ref InstanceType
-        ImageId: !Ref ECSAMI
-        IamInstanceProfile:
-          Name: !Ref EC2InstanceProfile
-        SecurityGroupIds:
-          - !Ref ContainerSecurityGroup
-        NetworkInterfaces:
-          - AssociatePublicIpAddress: true
-            SubnetId: !Ref PublicSubnet
-        UserData:
-          Fn::Base64: !Sub |
-            #!/bin/bash -xe
-            echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config
-            yum install -y aws-cfn-bootstrap
-            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ECSAutoScalingGroup --region ${AWS::Region}
+ECSLaunchTemplate:
+  Type: AWS::EC2::LaunchTemplate
+  Properties:
+    LaunchTemplateName: !Sub ${EnvironmentName}-launch-template
+    LaunchTemplateData:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref ECSAMI
+      IamInstanceProfile:
+        Name: !Ref EC2InstanceProfile
+      SecurityGroupIds:
+        - !Ref ContainerSecurityGroup
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          SubnetId: !Ref PublicSubnet
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config
+          yum install -y aws-cfn-bootstrap
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ECSAutoScalingGroup --region ${AWS::Region}
+
 
   # Auto Scaling Group for ECS Instances
   ECSAutoScalingGroup:
