@@ -29,34 +29,38 @@ Parameters:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
     Default: /aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id
     Description: The Amazon Machine Image ID used for the cluster. Leave it as the default value for the latest AMI.
+  PublicSubnetOne:
+    Description: The first public subnet ID.
+    Type: AWS::EC2::Subnet::Id
+  PublicSubnetTwo:
+    Description: The second public subnet ID.
+    Type: AWS::EC2::Subnet::Id
+  VpcId:
+    Description: VPC ID where resources will be launched.
+    Type: AWS::EC2::VPC::Id
 
 Resources:
-
-  # ECS Cluster
   ECSCluster:
     Type: AWS::ECS::Cluster
     Properties:
       ClusterName: !Sub ${EnvironmentName}-ec2
 
-  # Security Group for ECS Instances
   ContainerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Access to ECS instances
-      VpcId: 
-        Fn::ImportValue: !Sub ${EnvironmentName}:VpcId
+      GroupDescription: Security group for ECS instances
+      VpcId: !Ref VpcId
       SecurityGroupIngress:
-        - IpProtocol: "-1"  # "-1" indicates all protocols
-          CidrIp: "0.0.0.0/0"  # Allows all incoming traffic from any IPv4 address
         - IpProtocol: "-1"
-          CidrIpv6: "::/0"  # Allows all incoming traffic from any IPv6 address
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: "-1"
+          CidrIpv6: "::/0"
       SecurityGroupEgress:
         - IpProtocol: "-1"
-          CidrIp: "0.0.0.0/0"  # Allows all outgoing traffic to any IPv4 address
+          CidrIp: "0.0.0.0/0"
         - IpProtocol: "-1"
-          CidrIpv6: "::/0"  # Allows all outgoing traffic to any IPv6 address
+          CidrIpv6: "::/0"
 
-  # IAM Role for ECS Instances
   ECSInstanceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -71,43 +75,37 @@ Resources:
         - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
       Path: /
 
-  # IAM Instance Profile for ECS Instances
-EC2InstanceProfile:
-  Type: AWS::IAM::InstanceProfile
-  Properties:
-    Path: /
-    Roles:
-      - !Ref ECSInstanceRole
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref ECSInstanceRole
 
-ECSLaunchTemplate:
-  Type: AWS::EC2::LaunchTemplate
-  Properties:
-    LaunchTemplateName: !Sub ${EnvironmentName}-launch-template
-    LaunchTemplateData:
-      InstanceType: !Ref InstanceType
-      ImageId: !Ref ECSAMI
-      IamInstanceProfile:
-        Name: !Ref EC2InstanceProfile
-      SecurityGroupIds:
-        - !Ref ContainerSecurityGroup
-      NetworkInterfaces:
-        - AssociatePublicIpAddress: true
-          SubnetId: !Ref PublicSubnet
-      UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash -xe
-          echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config
-          yum install -y aws-cfn-bootstrap
-          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ECSAutoScalingGroup --region ${AWS::Region}
+  ECSLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub ${EnvironmentName}-launch-template
+      LaunchTemplateData:
+        InstanceType: !Ref InstanceType
+        ImageId: !Ref ECSAMI
+        IamInstanceProfile:
+          Name: !Ref EC2InstanceProfile
+        SecurityGroupIds:
+          - !Ref ContainerSecurityGroup
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash -xe
+            echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config
+            yum install -y aws-cfn-bootstrap
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ECSAutoScalingGroup --region ${AWS::Region}
 
-
-  # Auto Scaling Group for ECS Instances
   ECSAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
       VPCZoneIdentifier:
-        - Fn::ImportValue: !Sub ${EnvironmentName}:PublicSubnetOne
-        - Fn::ImportValue: !Sub ${EnvironmentName}:PublicSubnetTwo
+        - !Ref PublicSubnetOne
+        - !Ref PublicSubnetTwo
       LaunchTemplate:
         LaunchTemplateId: !Ref ECSLaunchTemplate
         Version: !GetAtt ECSLaunchTemplate.LatestVersionNumber
@@ -123,7 +121,7 @@ ECSLaunchTemplate:
 
 Outputs:
   ClusterName:
-    Description: The name of the ECS cluster
+    Description: The ECS Cluster Name
     Value: !Ref ECSCluster
     Export:
       Name: !Sub ${EnvironmentName}:ClusterName
